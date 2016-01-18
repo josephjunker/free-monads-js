@@ -8,18 +8,23 @@ function makeTracingStub (traceName) {
   var callbackArgs = [];
 
   function trace () {
-    console.log(traceName + " was called with arguments:");
 
     var args = Array.prototype.slice.call(arguments),
         callback = args[args.length - 1],
         otherArgs = args.slice(0, args.length - 1);
 
-    otherArgs.forEach(function (arg) {
-      show(arg);
-    });
+    if (otherArgs.length) {
+      console.log(traceName + " was called with arguments:");
+
+      otherArgs.forEach(function (arg) {
+        show(arg);
+      });
+
+    } else {
+      console.log(traceName + " was called with no arguments.");
+    }
 
     console.log("\n");
-
     callback.apply(null, callbackArgs);
   };
 
@@ -31,17 +36,18 @@ function makeTracingStub (traceName) {
   return trace;
 }
 
-module.exports.makeLoggerMock = function () {
+module.exports.makeLogger = function () {
   return {
     log: makeTracingStub("logger.log")
   };
 };
 
-module.exports.makeHttpMock = function () {
+module.exports.makeHttp = function () {
   return {
-    GET: makeTracingStub("http.GET"),
-    PUT: makeTracingStub("http.PUT"),
-    POST: makeTracingStub("http.POST"),
-    DELETE: makeTracingStub("http.DELETE")
+    get: makeTracingStub("http.get"),
+    put: makeTracingStub("http.put"),
+    post: makeTracingStub("http.post"),
+    delete: makeTracingStub("http.delete")
   };
 };
+
