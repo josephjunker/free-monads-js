@@ -7,7 +7,9 @@ var testRunners = require("./testRunners"),
 // Framework function to clean up this approach
 function makeAlgebraElement(algebraName, operationName, args) {
   return function () {
-    if (arguments.length !== args.length)
+    var passedArgs = Array.prototype.slice.call(arguments);
+
+    if (passedArgs.length !== args.length)
       throw new Error(
         "Called " + algebraName + "." + operationName + " with " + argments.length +
           " arguments; " + args.length + " arguments are expected");
@@ -15,7 +17,7 @@ function makeAlgebraElement(algebraName, operationName, args) {
     var body = {};
     if (args) {
       args.forEach(function(arg, i) {
-        body[arg] = arguments[i];
+        body[arg] = passedArgs[i];
       });
     }
 
@@ -72,15 +74,111 @@ function makeInterpreter (inputAlgebra, operationHandlers) {
                       " as an operation in the " +
                       inputAlgebra + " algebra");
 
-    var op = cloudFileOperation.meta.operation,
-        args = cloudFileOperation.body;
+    var op = sourceOperation.meta.operation,
+        args = sourceOperation.body,
+        handler = operationHandlers[op];
 
-    operationHandlers[op](args);
+    if (!handler) throw new Error(
+      "Tried to interpret unknown operation in '" +
+      inputAlgebra + "' algebra: " + inspect(op, { depth: null }));
 
-    throw new Error("Tried to interpret unknown operation in '" +
-                    inputAlgebra + "' algebra: " + op);
+    return handler(args);
   };
 }
+
+// Our "base" algebra-- interpreters create io instances with functions in order to execute
+// side effects. The function passed into this must take a callback and execute it exactly
+// once
+
+var io = {
+  run: function (fn) {
+    return {
+      meta: {
+        type: "special",
+        algebra: "io",
+        operation: "run"
+      },
+      body: {
+        fn: fn
+      }
+    };
+  }
+};
+
+// If an interpreter produces more than one operation for a given input,
+// it puts them in this
+function multiOperation(ops) {
+  return {
+    meta: {
+      type: "special",
+      algebra: "composite",
+      operation: "composite"
+    },
+    body: {
+      operations: ops
+    }
+  };
+}
+
+// Takes a list of operations which compile to IO, and compile them, executing IO
+// immediately when it appears. Exactly one interpreter must be provided for every
+// non-IO algebra contained in the program or produced by the program's interpretation
+//
+// Mutates program
+function makeExecutor(interpreters) {
+
+  function executeRecursive(program, cb) {
+    if (!Array.isArray(program)) throw new Error(
+      "Executor was called with a non-array as a program. " +
+      "The provided program was: " + program);
+
+    if (!program.length) return void cb();
+
+    var op = program.shift();
+
+    if (op.meta.type === "special") {
+      if (op.meta.algebra === "io") {
+
+        return void op.body.fn(function () {
+          var args = Array.prototype.slice.call(arguments),
+              newProgram = args.concat(program);
+
+          return void setImmediate(executeRecursive, newProgram, cb);
+        });
+
+      } else if (op.meta.algebra === "composite") {
+
+        var ops = op.body.operations,
+            newProgram = ops.concat(program);
+
+        return void setImmediate(executeRecursive, newProgram, cb);
+
+      } else {
+        throw new Error("Unknown special op: " + inspect(op, { depth: null }));
+      }
+
+    } else {
+
+      var interpreter = interpreters[op.meta.algebra];
+
+      if (!interpreter) throw new Error(
+        "Executor received operation that it does not have an interpreter for: " +
+        inspect(op, { depth: null }));
+
+      var compiledOp = interpreter(op);
+
+      program.unshift(compiledOp);
+      return void setImmediate(executeRecursive, program, cb);
+    }
+  }
+
+  return executeRecursive;
+}
+
+
+/*--------------- End framework functions ---------------*/
+
+
 
 // We use this to inject the mocks for our tests
 function getSaveFile (mocks) {
@@ -88,7 +186,7 @@ function getSaveFile (mocks) {
       externalHttp = mocks.http;
 
   // Define the algebras
-  var cloudFilesApi = makeAlgebra("cloudFiles", {
+  var cloudFiles = makeAlgebra("cloudFiles", {
     saveFile: ["path", "bytes"],
     listFiles: ["path"]
   });
@@ -105,35 +203,89 @@ function getSaveFile (mocks) {
   });
 
   // Define the interpreters
-  var logCloudFilesI = makeInterpreter({
+  var cloudFilesToHttpI = makeInterpreter("cloudFiles", {
     saveFile: function (args) {
-      console.log("Saving file to " + args.path.show());
+      var path = args.path,
+          bytes = args.bytes;
+
+      return http.post("cloudFiles.fooService.com/" + path.name, bytes);
     },
     listFiles: function (args) {
-      console.log("Listing files at " + args.path.show());
+      var path = args.path;
+
+      return http.get("cloudFiles.fooService.com/" + path.name);
     }
   });
 
+  var httpToIoI = makeInterpreter("http", {
+    get: function (args) {
+      return io.run(function (cb) {
+        externalHttp.get(args.path, cb);
+      });
+    },
+    put: function (args) {
+      return io.run(function (cb) {
+        externalHttp.put(args.path, args.bytes, cb);
+      });
+    },
+    post: function (args) {
+      return io.run(function (cb) {
+        externalHttp.post(args.path, args.bytes, cb);
+      });
+    },
+    delete: function (args) {
+      return io.run(function (cb) {
+        externalHttp.delete(args.path, cb);
+      });
+    }
+  });
 
+  var cloudFilesToLogI = makeInterpreter("cloudFiles", {
+    saveFile: function (args) {
+      var path = args.path;
+
+      return log.log("log", "Saving a file to " + path.name);
+    },
+    listFiles: function (args) {
+      var path = args.path;
+
+      return log.log("log", "Listing files at " + path.name);
+    }
+  });
+
+  function cloudFilesToLogAndHttpI(operation) {
+    var logOp = cloudFilesToLogI(operation),
+        httpOp = cloudFilesToHttpI(operation);
+
+    return multiOperation([logOp, httpOp]);
+  }
+
+  var logToIoI = makeInterpreter("log", {
+    log: function (args) {
+      var level = args.level,
+          message = args.message;
+
+      return io.run(function (cb) {
+        console.log(level + ": " + message);
+        cb();
+      });
+    }
+  });
+
+  var executor = makeExecutor({
+    cloudFiles: cloudFilesToLogAndHttpI,
+    http: httpToIoI,
+    log: logToIoI
+  });
+
+  // TODO: right now executor expects an array. We should have a way to sequence ops?
 
   function saveFile (path, file, callback) {
-    log("Saving file " + path.name + " to " + path.parentDir, function () {
-      post("cloudfiles.fooservice.com" + path.show(), file, function (postErr) {
-        if (!postErr) {
-          log("Successfully saved file " + path.show(), callback);
-        } else {
-          log("Failed to save file " + path.show(), function () {
-            callback(postErr);
-          });
-        }
-      });
-    });
+    var program = [cloudFiles.saveFile(path, file)];
+    executor(program, callback);
   }
 
   return saveFile;
 }
 
-console.log("Run expecting success:")
 testRunners.runFileSave(getSaveFile);
-console.log("\n\nRun expecting error:")
-testRunners.runFileSaveWithError(getSaveFile);
