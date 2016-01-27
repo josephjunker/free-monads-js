@@ -1,0 +1,76 @@
+
+earlier, more confused notes here:
+maybe instead of providing the rest of the program to interpreters,
+and asking them to stuff it into the next op in the correct way,
+define this.replaceProgram(), which can be called to express the
+side-effect of changing control flow and passed the new program.
+Then the interpreter returns a value as normal, which can get
+passed in to the next interpreter step
+
+The result is an operation, or null, always. If its an operation
+it gets put on top of the queue. Add a built-in operation, passValue,
+that uses something like this.replaceProgram() to bind its value
+to the input of the next operation
+
+This would let all side effects be isolated in interpreters
+
+
+------------------------
+later notes here:
+
+On later examination, I think the approach I've added of letting a function be provided which
+produces an operation can take a lot of complexity away from implementing control flow in
+the interpreters
+
+I think that interpreter control flow should only take effect within the scope of
+one compositeOperation-- that way an operation can get an error, and abort, and the
+next level of abstraction up can choose what to do about this. I'm not sure yet how to implement
+this kind of bounded control flow manipulaiton.
+
+
+function increasePlayerScore (req, res, next) {
+
+  var id = req.body.id;
+
+  db.get(id, function (err, player) {
+
+    if (err) return void next(err);
+
+    addToScore(player, function (newPlayer) {
+
+      db.put(newPlayer, function (err, player) {
+
+        if (err) return void next(err);
+        else res.send(200);
+
+      });
+    });
+  });
+}
+
+function increasePlayerScore (req, res, next) {
+
+  var id = req.body.id;
+
+  execute({
+    db: dbFree,
+    error: makeInterpreter("error", {
+      error: function (args, nextOperation) {
+        var value = args.value;
+
+        if (nextOperation) return error(args);
+        else return value;
+      }
+    })
+  }, [
+    db.get(id),
+    lift(addToScore),   <--- to insert a function into the processing chain
+    curry(db.set),      <--- to pass the results of one operation into the next
+    express.sendResponse(200);
+  ], function noop() {}); // optional callback
+
+}
+
+
+
+

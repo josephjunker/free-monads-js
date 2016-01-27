@@ -105,6 +105,29 @@ var io = {
   }
 };
 
+// Trying to figure out how to move things into a monadic context-- this is
+// an attempt to define something which affects the control flow of the rest of the program
+//
+// This will make me have to change how execute operation runs-- it may need to not
+// de-nest composite operations
+var controlFlow = {
+  error: function (errValue) {
+    return {
+      meta: {
+        algebra: "controlFlow",
+        operation: "error"
+      },
+      body: {
+        value: errValue
+      },
+      // Should be on a prototype, refactor later
+      getNextOperation: function (lastResult, args) {
+        return controlFlow.exitError(args.value);
+      }
+    };
+  },
+};
+
 // If an interpreter produces more than one operation for a given input,
 // it puts them in this
 function multiOperation(ops) {
@@ -217,6 +240,16 @@ function getSaveFile (mocks) {
     }
   });
 
+  var httpToIoWithErrorsI = makeInterpreter("http", {
+    get: function (args) {
+      return io.run(function (cb) {
+        externalHttp.get(args.path, function (err, result) {
+          if (err) return void cb(http.error(err));
+        });
+      });
+    }
+  });
+
   var httpToIoI = makeInterpreter("http", {
     get: function (args) {
       return io.run(function (cb) {
@@ -277,8 +310,6 @@ function getSaveFile (mocks) {
     http: httpToIoI,
     log: logToIoI
   });
-
-  // TODO: right now executor expects an array. We should have a way to sequence ops?
 
   function saveFile (path, file, callback) {
     var program = [cloudFiles.saveFile(path, file)];
