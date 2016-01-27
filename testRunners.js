@@ -1,3 +1,4 @@
+"use strict";
 // Convenience methods to run the examples with mock data
 
 var stubs = require('./testStubs');

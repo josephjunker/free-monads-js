@@ -1,3 +1,4 @@
+"use strict";
 
 var makeAlgebra = require("../lib/makeAlgebra");
 
@@ -9,7 +10,7 @@ var makeAlgebra = require("../lib/makeAlgebra");
 
 
 // The "returns" flag is something that I didn't think of when writing the
-// initial prototype. In cases where we expect a sequence of operations to
+// first prototype. In cases where we expect a sequence of operations to
 // return a usable, non-operation value, we should specify this. It will be
 // checked dynamically. It raises thorny questions about what our type system
 // should look like, but for now I'll just make it be a list of primitives,

@@ -1,3 +1,5 @@
+"use strict";
+
 // This is an attempt to implement "composable interpreters" using plain JavaScript
 // objects and functions, without a monad analogy
 

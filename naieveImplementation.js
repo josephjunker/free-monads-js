@@ -1,3 +1,4 @@
+"use strict";
 // This file corresponds to the beginning IO monad example in De Goes' post
 
 var testRunners = require('./testRunners');

@@ -1,3 +1,4 @@
+"use strict";
 
 var builtInAlgebras = require("../lib/algebras");
 

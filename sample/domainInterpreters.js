@@ -1,12 +1,15 @@
+"use strict";
 
 // Interpreters to get this example to work. Most of these are just sketches
 // of functionality to show how the interfaces and responsibilities will look
 // for this example
 
 var makeInterpreter = require("../lib/makeInterpreter"),
-    builtInAlgebras = require("../lib/builtInAlgebras");
+    builtInAlgebras = require("../lib/algebras");
 
 var algebras = require("./algebras");
+
+var inspect = require("util").inspect;
 
 var authorization = makeInterpreter("authorization", {
   isValidToken: function (args, cb) {
@@ -59,7 +62,7 @@ var errors = makeInterpreter("errors", {
 });
 
 var userRecords = makeInterpreter("userRecords", {
-  updateField: function (args) {
+  updateField: function (args, cb) {
     var entityId = args.entityId,
         fieldName = args.fieldName,
         fieldValue = args.fieldValue,
@@ -71,8 +74,8 @@ var userRecords = makeInterpreter("userRecords", {
   }
 });
 
-var database = makeInterpreter("database", {
-  upsert: function (args) {
+var database = makeInterpreter("coconutDb/dbOperations", {
+  upsert: function (args, cb) {
     var tableName = args.table,
         entityId = args.id,
         updatedField = args.patch,
@@ -80,10 +83,57 @@ var database = makeInterpreter("database", {
         value = updatedField[field];
 
     cb(null, builtInAlgebras.io.run(function (cb) {
+      // This is where we would interface with an actual DB driver
       console.log("operating on the database: UPSERT " + field + " = " + value +
                   " WHERE id = " + entityId);
       cb();
     }));
   }
 });
+
+var logging = makeInterpreter("log", {
+  log: function (args, cb) {
+    var message = args.message;
+
+    cb(null, builtInAlgebras.io.run(function (cb) {
+      console.log("LOG: " + message);
+    }));
+  },
+  warn: function (args, cb) {
+    var message = args.message;
+
+    cb(null, builtInAlgebras.io.run(function (cb) {
+      console.log("WARN: " + message);
+    }));
+  },
+  error: function (args, cb) {
+    var message = args.message;
+
+    cb(null, builtInAlgebras.io.run(function (cb) {
+      console.log("ERROR: " + message);
+      cb();
+    }));
+  }
+});
+
+var apiResponses = makeInterpreter("someRestFramework/respond", {
+  respond: function (args, cb) {
+    var result = args.responseDescriptor,
+        responseObj = args.frameworkResponseObject;
+
+    cb(null, builtInAlgebras.io.run(function (cb) {
+      console.log("Calling response.send with argument: " + inspect(result, { depth: null }));
+      cb();
+    }));
+  }
+});
+
+module.exports = {
+  authorization: authorization,
+  errors: errors,
+  userRecords: userRecords,
+  apiResponses: apiResponses,
+  database: database,
+  logging: logging
+};
 

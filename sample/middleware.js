@@ -1,3 +1,4 @@
+"use strict";
 
 var interpreters = require("./domainInterpreters"),
     changeEmail = require("./changeEmail"),
