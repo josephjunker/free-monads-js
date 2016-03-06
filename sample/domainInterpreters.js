@@ -36,33 +36,28 @@ var authorization = makeInterpreter("authorization", {
   }
 });
 
-// Here is where I need to invent a way for interpreters to manipulate the remaining part of this
-// composite
-//
-// I'm not certain that this will be the final interface, but I think the final interface should
-// have these capabilities: calling composite.get() will give you a deep copy of the remaining
-// composite, and calling composite.replace(prog) will replace the remaining composite with prog
+// Overwrite replaces the remainder of this composite's program with the provided instruction list
 var errors = makeInterpreter("errors", {
-  authorization: function (args, composite) {
+  authorization: function (args, overwrite) {
     var identity = args.identity,
         requestedResource = args.requestedResource,
         message = "User " + identity + " does not have access to resource " + requestedResource;
 
     // An algebra whose interpreter is constantly defined as exiting the current composite
     // and returning the value it was instantiated with as the composite's response
-    composite.replace([builtInAlgebras.returning({
+    overwrite([result({
       status: 401,
       body: message
     })]);
   },
-  internalServer: function (args, composite) {
+  internalServer: function (args, overwrite) {
     var message = args.sourceError;
 
     // I'm not sold that returning http errors is best here... I think there may be a more
     // composable solution, based on returning general error codes and later mapping them
     // to response codes, but I'm not gonna obsess over it ATM. This sounds like an orthogonal problem
     // to the one this library is solving.
-    composite.replace([builtInAlgebras.returning({
+    overwrite([result({
       status: 500,
       body: message
     })]);
@@ -141,7 +136,7 @@ module.exports = {
   errors: errors,
   userRecords: userRecords,
   apiResponses: apiResponses,
-  database: database,
-  logging: logging
+  logging: logging,
+  "coconutDb/dbOperations": database
 };
 
