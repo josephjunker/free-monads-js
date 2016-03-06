@@ -2,10 +2,11 @@
 
 // Interpreters to get this example to work. Most of these are just sketches
 // of functionality to show how the interfaces and responsibilities will look
-// for this example
 
 var makeInterpreter = require("../lib/makeInterpreter"),
-    builtInAlgebras = require("../lib/algebras");
+    builtInAlgebras = require("../lib/algebras"),
+    impure = builtInAlgebras.impure,
+    result = builtInAlgebras.returning;
 
 var algebras = require("./algebras");
 
@@ -14,15 +15,24 @@ var inspect = require("util").inspect;
 var authorization = makeInterpreter("authorization", {
   isValidToken: function (args, cb) {
     var token = args.token;
+    console.log("executed isValidToken");
 
     // Pretend I'm checking a signature here
-    cb(null, token.isValid === true);
+    return result(token.isValid === true);
   },
   isAuthed: function (args, cb) {
     var userId = args.userId,
         token = args.token;
 
-    cb(null, token && token.userId === userId);
+    console.log("executed isAuthed");
+
+    return result(token && token.userId === userId);
+  },
+  doesTokenMatchUserId: function (args, cb) {
+    var userId = args.userId,
+        token = args.token;
+
+    return result(token && token.userId === userId);
   }
 });
 
@@ -33,7 +43,7 @@ var authorization = makeInterpreter("authorization", {
 // have these capabilities: calling composite.get() will give you a deep copy of the remaining
 // composite, and calling composite.replace(prog) will replace the remaining composite with prog
 var errors = makeInterpreter("errors", {
-  authorization: function (args, cb, composite) {
+  authorization: function (args, composite) {
     var identity = args.identity,
         requestedResource = args.requestedResource,
         message = "User " + identity + " does not have access to resource " + requestedResource;
@@ -44,25 +54,23 @@ var errors = makeInterpreter("errors", {
       status: 401,
       body: message
     })]);
-
-    cb();
   },
-  internalServer: function (args, cb, composite) {
+  internalServer: function (args, composite) {
     var message = args.sourceError;
 
     // I'm not sold that returning http errors is best here... I think there may be a more
-    // composable solution, but I'm not gonna obsess over it ATM
+    // composable solution, based on returning general error codes and later mapping them
+    // to response codes, but I'm not gonna obsess over it ATM. This sounds like an orthogonal problem
+    // to the one this library is solving.
     composite.replace([builtInAlgebras.returning({
       status: 500,
       body: message
     })]);
-
-    cb();
   }
 });
 
 var userRecords = makeInterpreter("userRecords", {
-  updateField: function (args, cb) {
+  updateField: function (args) {
     var entityId = args.entityId,
         fieldName = args.fieldName,
         fieldValue = args.fieldValue,
@@ -70,7 +78,7 @@ var userRecords = makeInterpreter("userRecords", {
 
     upsertPayload[fieldName] = fieldValue;
 
-    cb(null, algebras.database.upsert("users", entityId, upsertPayload));
+    return algebras.database.upsert("users", entityId, upsertPayload);
   }
 });
 
@@ -82,12 +90,12 @@ var database = makeInterpreter("coconutDb/dbOperations", {
         field = Object.keys(updatedField)[0],
         value = updatedField[field];
 
-    cb(null, builtInAlgebras.io.run(function (cb) {
+    console.log("upsert is returning a impure operation now");
+    return impure(function (cb) {
       // This is where we would interface with an actual DB driver
-      console.log("operating on the database: UPSERT " + field + " = " + value +
-                  " WHERE id = " + entityId);
+      console.log("operating on the database: UPSERT " + field + " = " + value + " WHERE id = " + entityId);
       cb();
-    }));
+    });
   }
 });
 
@@ -95,24 +103,24 @@ var logging = makeInterpreter("log", {
   log: function (args, cb) {
     var message = args.message;
 
-    cb(null, builtInAlgebras.io.run(function (cb) {
+    return impure(function (cb) {
       console.log("LOG: " + message);
-    }));
+    });
   },
   warn: function (args, cb) {
     var message = args.message;
 
-    cb(null, builtInAlgebras.io.run(function (cb) {
+    return impure(function (cb) {
       console.log("WARN: " + message);
-    }));
+    });
   },
   error: function (args, cb) {
     var message = args.message;
 
-    cb(null, builtInAlgebras.io.run(function (cb) {
+    return impure(function (cb) {
       console.log("ERROR: " + message);
       cb();
-    }));
+    });
   }
 });
 
@@ -121,10 +129,10 @@ var apiResponses = makeInterpreter("someRestFramework/respond", {
     var result = args.responseDescriptor,
         responseObj = args.frameworkResponseObject;
 
-    cb(null, builtInAlgebras.io.run(function (cb) {
+    return impure(function (cb) {
       console.log("Calling response.send with argument: " + inspect(result, { depth: null }));
       cb();
-    }));
+    });
   }
 });
 

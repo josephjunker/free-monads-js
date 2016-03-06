@@ -1,11 +1,13 @@
 "use strict";
 
+// This file is what a route endpoint would look like in an express-like app using this framework
+
 var builtInAlgebras = require("../lib/algebras");
 
-var algebras = require("./coreAlgebras"),
+var algebras = require("./algebras"),
     authorization = algebras.authorization,
     errors = algebras.errors,
-    userRecords = algegras.userRecords;  // An algebra that separately compiles to DB operations
+    userRecords = algebras.userRecords;  // An algebra that separately compiles to DB operations
 
 // Contrived example-- we want to make sure a user can change their address,
 // and then change it. I know that in reality you wouldn't want to do authorization inside
@@ -21,15 +23,16 @@ module.exports = function changeUserEmailAddress(userId, authToken, emailAddress
   // we can use local name bindings without leaking information
   var program = builtInAlgebras.composite([
     // We wrap operations in objects to bind their results to names, scoped to the composite
-    { isValidToken: authorization.tokenIsValid(authToken) },
-    { isAuthed: authorization.matchId(userId, authToken) },
+    { isValidToken: authorization.isValidToken(authToken) },
+    { isAuthed: authorization.doesTokenMatchUserId(authToken, userId) },
 
     // args contains the results of all previous operations in this composite which have been named
-    function (args, cb) {
+    function (args) {
+      console.log("executed function from changeEmail");
       // We know that errors have the semantics of stopping execution, so this is all
       // we have to do here.
       if (!args.isValidToken || !args.isAuthed)
-        return void cb(errors.authorization(authToken, userId));
+        return errors.authorization(authToken, userId);
 
       void cb();
     },
@@ -37,13 +40,11 @@ module.exports = function changeUserEmailAddress(userId, authToken, emailAddress
 
     // When we find a function in the operation list, we execute it to get its operation.
     // if it calls back with null, we ignore it. Don't do side effects in here.
+    // If you want to return a value instead of an operation from a function, you need to wrap
+    // it in an instance of the "returning" algebra
     function (args, cb) {
       if (args.writeStatus.error) return void cb(errors.internalServer(args.writeStatus.error));
 
-      // I don't really like this. We should figure out a way to use internal statuses,
-      // that correspond to our domain model and are composable, and then map them to HTTP statuses
-      // in middleware.
-      // This would demonstrate using multiple levels of interpreters?
       return builtInAlgebras.returning({
         status: 200
       });

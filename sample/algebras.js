@@ -12,13 +12,14 @@ var makeAlgebra = require("../lib/makeAlgebra");
 // The "returns" flag is something that I didn't think of when writing the
 // first prototype. In cases where we expect a sequence of operations to
 // return a usable, non-operation value, we should specify this. It will be
-// checked dynamically. It raises thorny questions about what our type system
-// should look like, but for now I'll just make it be a list of primitives,
-// and not deeply examine the contents of "array" and "object" values
+// checked dynamically. Types should be implemented as a function that we pass
+// the given type label and the actual result data to, enabling any type system
+// (or the lack thereof) to be chosen by the caller, orthogonal to this library
 
 var authorization = makeAlgebra("authorization", {
   isValidToken: ["token", { returns: "boolean" }],
-  isAuthed: ["userId", "token", { returns: "boolean" }]
+  isAuthed: ["userId", "token", { returns: "boolean" }],
+  doesTokenMatchUserId: ["token", "userId", { returns: "boolean" }]
 });
 
 var errors = makeAlgebra("errors", {

@@ -21,5 +21,5 @@ module.exports = function (request, response) {
     program = changeEmail(userId, token, emailAddress);
   }
 
-  execute([{ result: program }, function (args) { api.respond(args.result, response); }]);
+  execute([{ result: program }], function (args) { api.respond(args.result, response); });
 };
