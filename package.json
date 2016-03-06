@@ -1,0 +1,26 @@
+{
+  "name": "free-monads-js",
+  "version": "0.0.1",
+  "description": "Tools for building with composable algebras and interpreters",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "mocha test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JosephJNK/free-monads-js.git"
+  },
+  "keywords": [
+    "free",
+    "monads"
+  ],
+  "author": "Joseph Junker",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/JosephJNK/free-monads-js/issues"
+  },
+  "homepage": "https://github.com/JosephJNK/free-monads-js"
+}
