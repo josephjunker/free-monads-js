@@ -2,7 +2,7 @@
 
 // This file is what a route endpoint would look like in an express-like app using this framework
 
-var builtInAlgebras = require("../lib/algebras");
+var builtInAlgebras = require("../").algebras;
 
 var algebras = require("./algebras"),
     authorization = algebras.authorization,

@@ -3,8 +3,8 @@
 // Interpreters to get this example to work. Most of these are just sketches
 // of functionality to show how the interfaces and responsibilities will look
 
-var makeInterpreter = require("../lib/makeInterpreter"),
-    builtInAlgebras = require("../lib/algebras"),
+var makeInterpreter = require("../").makeInterpreter,
+    builtInAlgebras = require("../").algebras,
     impure = builtInAlgebras.impure,
     result = builtInAlgebras.returning;
 

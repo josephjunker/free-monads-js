@@ -2,7 +2,7 @@
 
 var interpreters = require("./domainInterpreters"),
     changeEmail = require("./changeEmail"),
-    makeExecutor = require("../lib/makeExecutor"),
+    makeExecutor = require("../").makeExecutor,
     api = require("./algebras").apiResponses;
 
 var execute = makeExecutor(interpreters);

@@ -1,6 +1,6 @@
 "use strict";
 
-var makeAlgebra = require("../lib/makeAlgebra");
+var makeAlgebra = require("../").makeAlgebra;
 
 // I've only implemented the algebra elements that are necessary for this example
 // to run here. In a real application I would expect more operations to be
