@@ -13,14 +13,14 @@ var algebras = require("./algebras");
 var inspect = require("util").inspect;
 
 var authorization = makeInterpreter("authorization", {
-  isValidToken: function (args, cb) {
+  isValidToken: function (args) {
     var token = args.token;
     console.log("executed isValidToken");
 
     // Pretend I'm checking a signature here
     return result(token.isValid === true);
   },
-  isAuthed: function (args, cb) {
+  isAuthed: function (args) {
     var userId = args.userId,
         token = args.token;
 
@@ -28,7 +28,7 @@ var authorization = makeInterpreter("authorization", {
 
     return result(token && token.userId === userId);
   },
-  doesTokenMatchUserId: function (args, cb) {
+  doesTokenMatchUserId: function (args) {
     var userId = args.userId,
         token = args.token;
 
