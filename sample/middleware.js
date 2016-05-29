@@ -3,7 +3,8 @@
 var interpreters = require("./domainInterpreters"),
     changeEmail = require("./changeEmail"),
     makeExecutor = require("../").makeExecutor,
-    api = require("./algebras").apiResponses;
+    api = require("./algebras").apiResponses,
+    builtInAlgebras = require("../").algebras;
 
 var execute = makeExecutor(interpreters);
 
@@ -21,5 +22,6 @@ module.exports = function (request, response) {
     program = changeEmail(userId, token, emailAddress);
   }
 
-  execute([{ result: program }], function (args) { api.respond(args.result, response); });
+  execute(builtInAlgebras.composite([program]), function (args) { api.respond(args.result, response); });
 };
+
