@@ -33,8 +33,6 @@ module.exports = function changeUserEmailAddress(userId, authToken, emailAddress
       // we have to do here.
       if (!args.isValidToken || !args.isAuthed)
         return errors.authorization(authToken, userId);
-
-      void cb();
     },
     { writeStatus: userRecords.updateField(userId, "emailAddress", emailAddress) },
 
@@ -43,7 +41,7 @@ module.exports = function changeUserEmailAddress(userId, authToken, emailAddress
     // If you want to return a value instead of an operation from a function, you need to wrap
     // it in an instance of the "returning" algebra
     function (args, cb) {
-      if (args.writeStatus.error) return void cb(errors.internalServer(args.writeStatus.error));
+      if (args.writeStatus.error) return errors.internalServer(args.writeStatus.error);
 
       return builtInAlgebras.returning({
         status: 200

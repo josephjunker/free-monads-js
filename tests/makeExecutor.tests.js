@@ -158,7 +158,6 @@ describe("makeExecutor", function () {
 
     var interpreterA = {
       firstOp: function (args) {
-          console.log('called firstOp');
         return composite([
           algB.oneB(args.foo),
           algB.twoB(args.bar, 42)
@@ -264,5 +263,142 @@ describe("makeExecutor", function () {
     });
   });
 
+  describe("embedded functions", function () {
+    it("should receive the named results of previous operations", function (done) {
+      var sampleAlgebra = makeAlgebra("testAlgebra", {
+        firstOperation: ["foo", "bar", { returns: "number" }],
+        secondOperation: [{ returns: "string" }]
+      });
+
+      var interpreters = {
+        first: sinon.stub().returns(returnValue(1)),
+        second: sinon.stub().returns(returnValue("foo"))
+      };
+
+      var sampleInterpreter = makeInterpreter("testAlgebra", {
+        firstOperation: interpreters.first,
+        secondOperation: interpreters.second
+      });
+
+      var execute = makeExecutor({ testAlgebra: sampleInterpreter });
+
+      var embeddedFunction = sinon.stub();
+      var program = [
+        { firstResult: sampleAlgebra.firstOperation(1, 2) },
+        { secondResult: sampleAlgebra.secondOperation() },
+        embeddedFunction
+      ];
+
+      execute(program, function () {
+        expect(embeddedFunction).to.be.calledOnce;
+        expect(embeddedFunction).to.be.calledWithMatch({
+          firstResult: 1,
+          secondResult: "foo"
+        });
+        done();
+      });
+    });
+
+    it("should be able to return void without interrupting program flow", function (done) {
+      var sampleAlgebra = makeAlgebra("testAlgebra", {
+        firstOperation: ["foo", "bar", { returns: "number" }],
+        secondOperation: [{ returns: "string" }],
+        thirdOperation: ["a", "b", { returns: "string" }]
+      });
+
+      var interpreters = {
+        first: sinon.stub().returns(returnValue(1)),
+        second: sinon.stub().returns(returnValue("foo")),
+        third: sinon.stub().returns(returnValue("bar"))
+      };
+
+      var sampleInterpreter = makeInterpreter("testAlgebra", {
+        firstOperation: interpreters.first,
+        secondOperation: interpreters.second,
+        thirdOperation: interpreters.third
+      });
+
+      var execute = makeExecutor({ testAlgebra: sampleInterpreter });
+
+      var embeddedFunction = sinon.stub();
+      var program = [
+        { firstResult: sampleAlgebra.firstOperation(1, 2) },
+        { secondResult: sampleAlgebra.secondOperation() },
+        embeddedFunction,
+        { thirdResult: sampleAlgebra.thirdOperation(3, 4) }
+      ];
+
+      execute(program, function (environment) {
+        expect(embeddedFunction).to.be.calledOnce;
+        expect(embeddedFunction).to.be.calledWithMatch({
+          firstResult: 1,
+          secondResult: "foo"
+        });
+
+        expect(interpreters.third).to.be.calledOnce;
+        expect(interpreters.third).to.be.calledAfter(embeddedFunction);
+
+        expect(environment).to.deep.equal({
+          firstResult: 1,
+          secondResult: "foo",
+          thirdResult: "bar"
+        });
+
+        done();
+      });
+    });
+
+    it("should be able to return an operation which will be executed", function (done) {
+      var sampleAlgebra = makeAlgebra("testAlgebra", {
+        operation: ["foo", "bar"],
+        second: ["baz"]
+      });
+
+      var interpreters = {
+        operation: sinon.stub().returns(),
+        second: sinon.stub().returns()
+      };
+
+      var sampleInterpreter = makeInterpreter("testAlgebra", {
+        operation: interpreters.operation,
+        second: interpreters.second
+      });
+
+      var execute = makeExecutor({ testAlgebra: sampleInterpreter });
+
+      var program = [
+        function () {
+          return sampleAlgebra.operation(1, 2);
+        },
+        sampleAlgebra.second(3)
+      ];
+
+      execute(program, function () {
+        expect(interpreters.operation).to.be.calledOnce;
+        expect(interpreters.operation).to.be.calledWithMatch({
+          foo: 1,
+          bar: 2
+        });
+
+        expect(interpreters.second).to.be.calledOnce;
+        expect(interpreters.second).to.be.calledAfter(interpreters.operation);
+        expect(interpreters.second).to.be.calledWithMatch({
+          baz: 3
+        });
+
+        done();
+      });
+    });
+
+    it.skip("should be able to return a composite operation", function () { });
+    it.skip("must not be allowed to return a function", function () { });
+    it.skip("should be able to bind its result to a name", function () { });
+    it.skip("should work when nested", function () { });
+  });
+
+  describe("overwrite", function () {
+    it.skip("should replace the remainder of the program with its returned result", function () { });
+    it.skip("should allow the result of its overwritten program to be bound to a name", function () { });
+  });
 });
 
